@@ -57,6 +57,7 @@ class ProfileAdmin(admin.ModelAdmin):
         "rejection_reason",
         "height",
         "drink",
+        "coins",
         "smoke",
         "looking_for",
         "submitted_at",

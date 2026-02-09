@@ -58,10 +58,29 @@ class Profile(models.Model):
     # ------------------------
     # COINS SYSTEM
     # ------------------------
-    coins = models.IntegerField(default=30)  # Every new user gets 30 free coins
+    coins = models.IntegerField(default=25)  # Every new user gets 30 free coins
 
     def __str__(self):
         return self.user.username
+
+
+# ---------------------------
+# COIN TRANSACTION LOG
+# ---------------------------
+class CoinTransaction(models.Model):
+    TRANSACTION_TYPES = (
+        ("SPEND", "Spend"),
+        ("EARN", "Earn"),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    coins = models.IntegerField()  # +ve for earn, -ve for spend
+    description = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} {self.coins} coins"
 
 
 # ---------------------------
@@ -216,6 +235,7 @@ def only_approved(user):
         raise PermissionDenied("Account not approved yet")
 
 
+
 # ---------------------------
 # AUTO CREATE PROFILE ON REGISTER
 # ---------------------------
@@ -223,7 +243,7 @@ def only_approved(user):
 def create_profile(sender, instance, created, **kwargs):
     """
     Automatically create Profile when a new User is created.
-    Gives user 30 free coins by default.
+    Gives user 25 free coins by default.
     """
     if created:
         Profile.objects.create(user=instance)

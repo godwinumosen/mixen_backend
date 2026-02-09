@@ -66,3 +66,37 @@ def send_rejected_email(to_email, reasons_list):
         recipient_list=[to_email],
         fail_silently=True,
     )
+
+
+def spend_coins(user, amount, description=""):
+    profile = user.profile
+    if profile.coins < amount:
+        return False
+    profile.coins -= amount
+    profile.save()
+
+    # Log transaction
+    from .models import CoinTransaction
+    CoinTransaction.objects.create(
+        user=user,
+        transaction_type="SPEND",
+        coins=-amount,
+        description=description
+    )
+    return True
+
+
+def add_coins(user, amount, description=""):
+    profile = user.profile
+    profile.coins += amount
+    profile.save()
+
+    # Log transaction
+    from .models import CoinTransaction
+    CoinTransaction.objects.create(
+        user=user,
+        transaction_type="EARN",
+        coins=amount,
+        description=description
+    )
+    return True

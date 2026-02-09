@@ -13,7 +13,7 @@ from .models import (
 )
 
 from .serializers import RegisterSerializer
-from .utils import spend_coins
+from .utils import add_coins, spend_coins
 from mixen import models
 
 
@@ -28,10 +28,10 @@ class RegisterView(APIView):
         if serializer.is_valid():
             user = serializer.save()
             profile = user.profile
-            profile.coins = 30
+            profile.coins = 25
             profile.save()
             return Response(
-                {"message": "Account created successfully. You have 30 free coins!", "user_id": user.id},
+                {"message": "Account created successfully. You have 25 free coins!", "user_id": user.id},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -162,34 +162,35 @@ class ProfileStatusView(APIView):
 # ---------------------------
 # 8️⃣ SWIPE USERS
 # ---------------------------
+
 class SwipeUsersView(APIView):
     permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         current_user = request.user
+
+        # Only approved users, excluding self
         users = User.objects.filter(profile__status=VerificationStatus.APPROVED).exclude(id=current_user.id)
 
-        liked_ids = Like.objects.filter(from_user=current_user).values_list('to_user_id', flat=True)
-        matched_ids1 = Match.objects.filter(user1=current_user).values_list('user2_id', flat=True)
-        matched_ids2 = Match.objects.filter(user2=current_user).values_list('user1_id', flat=True)
-
-        excluded_ids = list(liked_ids) + list(matched_ids1) + list(matched_ids2)
-        users_to_swipe = users.exclude(id__in=excluded_ids)
-
         data = []
-        for u in users_to_swipe:
-            profile_image = u.profile.images.first()
-            image_url = profile_image.image_url if profile_image else None
+        for u in users:
+            profile_images = u.profile.images.all()
+            image_url = profile_images[0].image_url if profile_images else None
+            bio = u.profile.bio if u.profile.bio else ""
+            age = u.profile.age if u.profile.age else "N/A"
+
             data.append({
                 "id": u.id,
                 "username": u.username,
-                "age": u.profile.age,
-                "bio": u.profile.bio,
-                "profile_image": image_url
+                "age": age,
+                "bio": bio,
+                "profile_image": image_url,
             })
 
         return Response(data)
+
+    
+
 
 
 # ---------------------------
@@ -302,4 +303,39 @@ class ViewLikesView(APIView):
         return Response({
             "likes": data,
             "remaining_coins": user.profile.coins
+        })
+
+
+class BuyCoinsView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        """
+        Expects:
+        {
+            "package_id": "coins_50",
+            "receipt": "google_or_apple_receipt"
+        }
+        """
+        user = request.user
+        package_id = request.data.get("package_id")
+        receipt = request.data.get("receipt")  # For real IAP verification
+
+        # Simulate coin packages for now
+        coin_packages = {
+            "coins_50": 50,
+            "coins_120": 120,
+            "coins_300": 300
+        }
+
+        coins_to_add = coin_packages.get(package_id)
+        if not coins_to_add:
+            return Response({"error": "Invalid package"}, status=400)
+
+        add_coins(user, coins_to_add, description=f"Purchased {coins_to_add} coins via IAP")
+
+        return Response({
+            "success": f"{coins_to_add} coins added",
+            "balance": user.profile.coins
         })

@@ -1,6 +1,7 @@
 # misen_server/urls.py
 from django.urls import path
 from .views import (
+    BuyCoinsView,
     RegisterView,
     JWTLoginView,
     UploadProfileImagesView,
@@ -35,4 +36,5 @@ urlpatterns = [
     # ---------------- Coins Features ----------------
     path("view-likes/", ViewLikesView.as_view(), name="view-likes"),
     path("send-message/", SendMessageView.as_view(), name="send-message"),
+    path("buy-coins/", BuyCoinsView.as_view(), name="buy-coins"),
 ]
