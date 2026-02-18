@@ -49,10 +49,11 @@ def add_coins(user, amount, description=""):
 # EMAIL SYSTEM
 # ============================
 
-def send_pending_email(to_email):
+def send_pending_email(to_email, username):
     send_mail(
         subject="Your account is under review",
         message=(
+            f"Hi {username},\n\n"
             "Thank you for submitting your profile.\n\n"
             "Your account is now pending admin approval. "
             "You will receive another email once approved."
@@ -63,10 +64,11 @@ def send_pending_email(to_email):
     )
 
 
-def send_approved_email(to_email):
+def send_approved_email(to_email, username):
     send_mail(
         subject="Your account is approved 🎉",
         message=(
+            f"Hi {username},\n\n"
             "Congratulations!\n\n"
             "Your account has been approved. "
             "You can now log in and start using the app."
@@ -77,12 +79,12 @@ def send_approved_email(to_email):
     )
 
 
-def send_rejected_email(to_email, reasons_list):
+def send_rejected_email(to_email, username, reasons_list):
     reasons_text = "\n- ".join(reasons_list)
-
     send_mail(
         subject="Your account has been rejected",
         message=(
+            f"Hi {username},\n\n"
             "Unfortunately, your account was rejected for the following reason(s):\n\n"
             f"- {reasons_text}\n\n"
             "Please fix the issues and resubmit your profile."
@@ -91,3 +93,5 @@ def send_rejected_email(to_email, reasons_list):
         recipient_list=[to_email],
         fail_silently=False,
     )
+
+    
