@@ -14,7 +14,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'mixen',
+    'mixen.apps.MisenServerConfig',
     'rest_framework',
     'rest_framework_simplejwt',
 ]

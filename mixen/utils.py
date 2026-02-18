@@ -3,100 +3,91 @@ from django.conf import settings
 from django.db import transaction
 
 
-# ----------------------------
-# COIN SYSTEM
-# ----------------------------
+# ============================
+# COIN SYSTEM (Atomic + Logged)
+# ============================
 
-def spend_coins(user, amount):
-    """
-    Deduct coins from a user safely.
-    Returns True if successful, False if not enough coins.
-    """
-    profile = user.profile
-
-    if profile.coins < amount:
-        return False
-
-    profile.coins -= amount
-    profile.save()
-    return True
-
-
-def add_coins(user, amount):
-    """
-    Add coins to a user (after subscription or purchase).
-    """
-    profile = user.profile
-    profile.coins += amount
-    profile.save()
-    return profile.coins
-
-
-# ----------------------------
-# EMAIL SYSTEM
-# ----------------------------
-
-def send_pending_email(to_email):
-    send_mail(
-        subject="Your account is under review",
-        message="Thank you for submitting your profile. Your account is now pending admin approval.",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[to_email],
-        fail_silently=True,
-    )
-
-
-def send_approved_email(to_email):
-    send_mail(
-        subject="Your account is approved 🎉",
-        message="Congratulations! Your account has been approved. You can now access the app.",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[to_email],
-        fail_silently=True,
-    )
-
-
-def send_rejected_email(to_email, reasons_list):
-    reasons_text = ", ".join(reasons_list)
-
-    send_mail(
-        subject="Your account has been rejected",
-        message=f"Sorry, your account has been rejected for the following reason(s):\n\n{reasons_text}",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[to_email],
-        fail_silently=True,
-    )
-
-
+@transaction.atomic
 def spend_coins(user, amount, description=""):
+    from .models import CoinTransaction  # import inside function to avoid circular import
     profile = user.profile
+
     if profile.coins < amount:
         return False
+
     profile.coins -= amount
     profile.save()
 
-    # Log transaction
-    from .models import CoinTransaction
     CoinTransaction.objects.create(
         user=user,
         transaction_type="SPEND",
         coins=-amount,
         description=description
     )
+
     return True
 
 
+@transaction.atomic
 def add_coins(user, amount, description=""):
+    from .models import CoinTransaction  # import inside function to avoid circular import
     profile = user.profile
     profile.coins += amount
     profile.save()
 
-    # Log transaction
-    from .models import CoinTransaction
     CoinTransaction.objects.create(
         user=user,
         transaction_type="EARN",
         coins=amount,
         description=description
     )
+
     return True
+
+
+# ============================
+# EMAIL SYSTEM
+# ============================
+
+def send_pending_email(to_email):
+    send_mail(
+        subject="Your account is under review",
+        message=(
+            "Thank you for submitting your profile.\n\n"
+            "Your account is now pending admin approval. "
+            "You will receive another email once approved."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[to_email],
+        fail_silently=False,  # Better for debugging
+    )
+
+
+def send_approved_email(to_email):
+    send_mail(
+        subject="Your account is approved 🎉",
+        message=(
+            "Congratulations!\n\n"
+            "Your account has been approved. "
+            "You can now log in and start using the app."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[to_email],
+        fail_silently=False,
+    )
+
+
+def send_rejected_email(to_email, reasons_list):
+    reasons_text = "\n- ".join(reasons_list)
+
+    send_mail(
+        subject="Your account has been rejected",
+        message=(
+            "Unfortunately, your account was rejected for the following reason(s):\n\n"
+            f"- {reasons_text}\n\n"
+            "Please fix the issues and resubmit your profile."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[to_email],
+        fail_silently=False,
+    )

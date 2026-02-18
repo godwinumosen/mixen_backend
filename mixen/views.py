@@ -9,11 +9,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     User, Profile, ProfileImage, VerificationVideo,
-    VerificationStatus, Like, Match, Message, submit_for_review
+    VerificationStatus, Like, Match, Message, submit_for_review, approve_profile
 )
 
 from .serializers import RegisterSerializer
-from .utils import add_coins, spend_coins
+from .utils import add_coins, spend_coins, send_pending_email, send_approved_email
 from mixen import models
 
 
@@ -30,10 +30,20 @@ class RegisterView(APIView):
             profile = user.profile
             profile.coins = 25
             profile.save()
-            return Response(
-                {"message": "Account created successfully. You have 25 free coins!", "user_id": user.id},
-                status=status.HTTP_201_CREATED
-            )
+
+            # Send email notifying user that profile is pending admin approval
+            send_pending_email(user.email)
+
+            # Create JWT tokens
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                "message": "Account created successfully. You have 25 free coins! Please wait until admin approves your account.",
+                "user_id": user.id,
+                "username": user.username,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh)
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -140,6 +150,10 @@ class SubmitProfileForReviewView(APIView):
         result = submit_for_review(profile)
         if "error" in result:
             return Response(result, status=400)
+
+        # Send email (already handled in submit_for_review)
+        # send_pending_email(profile.user.email)  # optional if you want double safety
+
         return Response(result, status=200)
 
 
@@ -162,7 +176,6 @@ class ProfileStatusView(APIView):
 # ---------------------------
 # 8️⃣ SWIPE USERS
 # ---------------------------
-
 class SwipeUsersView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -188,9 +201,6 @@ class SwipeUsersView(APIView):
             })
 
         return Response(data)
-
-    
-
 
 
 # ---------------------------

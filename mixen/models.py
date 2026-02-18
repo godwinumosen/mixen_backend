@@ -26,6 +26,7 @@ class User(AbstractUser):
     """
     You can later extend this with phone number, etc.
     """
+    email = models.EmailField(unique=True) 
     pass
 
 

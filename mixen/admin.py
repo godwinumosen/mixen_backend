@@ -1,47 +1,31 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils import timezone
-from django.core.mail import send_mail
 from .models import User, Profile, ProfileImage, VerificationVideo, Like, Match, RejectionReason
+from .models import approve_profile, reject_profile  # import your utility functions
+
 
 # -------------------------
 # Admin Actions
 # -------------------------
 def approve_profiles(modeladmin, request, queryset):
+    """
+    Approve selected profiles in admin and send automatic approval email.
+    """
     for profile in queryset:
-        profile.status = "APPROVED"
-        profile.reviewed_at = timezone.now()
-        profile.rejection_reason = ""
-        profile.save()
-
-        send_mail(
-            "Your account is approved!",
-            "Congratulations! Your account has been approved. You can now access the app.",
-            "no-reply@yourapp.com",
-            [profile.user.email],
-            fail_silently=False,
-        )
+        approve_profile(profile)  # This will update status, reviewed_at, and send email
 approve_profiles.short_description = "Approve selected profiles"
 
 
 def reject_profiles(modeladmin, request, queryset):
+    """
+    Reject selected profiles in admin and send automatic rejection email.
+    """
     default_reason = "Incomplete profile information"
     for profile in queryset:
-        profile.status = "REJECTED"
-        profile.reviewed_at = timezone.now()
-        profile.rejection_reason = default_reason
-        profile.save()
-
-        RejectionReason.objects.create(profile=profile, reason=default_reason)
-
-        send_mail(
-            "Your account is rejected",
-            f"Sorry, your account has been rejected. Reason: {default_reason}",
-            "no-reply@yourapp.com",
-            [profile.user.email],
-            fail_silently=False,
-        )
+        reject_profile(profile, [default_reason])  # Handles status, reviewed_at, and email
 reject_profiles.short_description = "Reject selected profiles"
+
 
 # -------------------------
 # Profile Admin
@@ -66,6 +50,23 @@ class ProfileAdmin(admin.ModelAdmin):
     readonly_fields = ("submitted_at", "reviewed_at")
     actions = [approve_profiles, reject_profiles]
 
+    def save_model(self, request, obj, form, change):
+        """
+        Automatically send emails when admin changes profile status manually.
+        """
+        if change:
+            old_obj = Profile.objects.get(pk=obj.pk)
+            if old_obj.status != obj.status:
+                if obj.status == "APPROVED":
+                    approve_profile(obj)
+                    return
+                elif obj.status == "REJECTED":
+                    reasons = [obj.rejection_reason] if obj.rejection_reason else ["Incomplete profile information"]
+                    reject_profile(obj, reasons)
+                    return
+        super().save_model(request, obj, form, change)
+
+
 # -------------------------
 # User Admin
 # -------------------------
@@ -74,6 +75,7 @@ class UserAdmin(BaseUserAdmin):
     list_display = ("username", "email", "is_staff", "is_active")
     search_fields = ("username", "email")
 
+
 # -------------------------
 # Other Models
 # -------------------------
@@ -81,17 +83,21 @@ class UserAdmin(BaseUserAdmin):
 class ProfileImageAdmin(admin.ModelAdmin):
     list_display = ("id", "profile", "uploaded_at")
 
+
 @admin.register(VerificationVideo)
 class VerificationVideoAdmin(admin.ModelAdmin):
     list_display = ("id", "profile", "uploaded_at")
+
 
 @admin.register(Like)
 class LikeAdmin(admin.ModelAdmin):
     list_display = ("from_user", "to_user", "created_at")
 
+
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     list_display = ("user1", "user2", "created_at")
+
 
 @admin.register(RejectionReason)
 class RejectionReasonAdmin(admin.ModelAdmin):
