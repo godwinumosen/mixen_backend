@@ -32,7 +32,7 @@ class RegisterView(APIView):
             profile.save()
 
             # Send email notifying user that profile is pending admin approval
-            send_pending_email(user.email)
+            send_pending_email(user.email, user.username)  # ✅ Pass username too
 
             # Create JWT tokens
             refresh = RefreshToken.for_user(user)
@@ -45,7 +45,6 @@ class RegisterView(APIView):
                 "refresh": str(refresh)
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # ---------------------------
 # 2️⃣ NORMAL LOGIN

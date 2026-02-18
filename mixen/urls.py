@@ -38,5 +38,5 @@ urlpatterns = [
     path("view-likes/", ViewLikesView.as_view(), name="view-likes"),
     path("send-message/", SendMessageView.as_view(), name="send-message"),
     path("buy-coins/", BuyCoinsView.as_view(), name="buy-coins"),
-     path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
 ]
