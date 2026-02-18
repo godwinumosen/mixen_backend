@@ -349,3 +349,21 @@ class BuyCoinsView(APIView):
             "success": f"{coins_to_add} coins added",
             "balance": user.profile.coins
         })
+
+
+
+
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import user_passes_test
+from .models import Profile
+
+# Only allow admin/staff users
+def admin_required(user):
+    return user.is_staff  # or user.is_superuser if you prefer
+
+
+@user_passes_test(lambda u: u.is_staff)
+def admin_dashboard(request):
+    profiles = Profile.objects.all()
+    return render(request, "mixen/admin_dashboard.html", {"profiles": profiles})
